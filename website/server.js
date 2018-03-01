@@ -3,21 +3,24 @@ var cheerio = require('cheerio');
 
 var crsSubject;
 
+//HOW TO USE: run node server.js on this file's directory and you should see an output
 
-createSchedule([[164, "CS"],[171, "CS"]]);
-
+//send the class number and subject here
+makeRequest(171,"CS");
 
 function callback(error, response, body) {
     if (!error && response.statusCode == 200) {
     	var $ = cheerio.load(body);
     	var innerTable = "<table>" + $('.even').parent().html() + "</table>";
     	$ = cheerio.load(innerTable);
-    	holdSchedules(organizeArray(parseHTML($, crsSubject)));
-    	//console.log(hasConflict([1,20,3,40],[2,50,6,10]))
+    	//prints out the classes
+    	console.log(organizeArray(parseHTML($, crsSubject)));
+    	//this is where the algorithm will be and I plan to put an emitter here to send the data back
     }
 
 }
 
+//organizes the labs with their lecture and formats the time
 function organizeArray(array) {
 	for(var i = 0; i < array.length; i++) {
 		array[i][6] = parseTime(array[i][6]);
@@ -34,6 +37,7 @@ function organizeArray(array) {
 	return array;
 }
 
+//parses the time into a 24 hour format then turns it into an integer for use
 function parseTime(timeString) {
 	var timeArr = timeString.split(/[\s:]+/);
 	var milArr = [0,0];
@@ -58,6 +62,7 @@ function parseTime(timeString) {
 
 }
 
+//checks for time conflicts by distributing time and checking for overlap
 function hasConflict(time1, time2) {
 	var time1Start = time1[0];
 	var time2Start = time2[0];
@@ -71,6 +76,7 @@ function hasConflict(time1, time2) {
 	}
 }
 
+//parses HTML of Drexel's TMS site to get table
 function parseHTML(selector, subject) {
 	var $ = selector;
 	var arr = [];
@@ -84,6 +90,7 @@ function parseHTML(selector, subject) {
 	return arr;
 }
 
+//parses a single entry of Drexel's TMS site and takes out specific data
 function parseRow(row) {
 	var arr = row.split(/[><]+/);
 	if(arr.length < 20 || arr[18] == 'p title="FULL"') {
@@ -101,6 +108,7 @@ function parseRow(row) {
 
 }
 
+//makes a request to Drexel's TMS with a specific course number
 function makeRequest(crsNum, crsSub) {
 	crsSubject = crsSub;
 	var options = {
@@ -110,16 +118,9 @@ function makeRequest(crsNum, crsSub) {
 	request(options, callback);
 }
 
+//TODO: this function is still in progress
 function createSchedule(scheduleArray) {
 	for(var i = 0; i < scheduleArray.length; i++) {
 		makeRequest(scheduleArray[i][0], scheduleArray[i][1]);
 	}
-	//console.log(scheduleArray);
 }
-
-var scheduleList = [];
-function holdSchedules(array) {
-	scheduleList.push(array);
-}
-
-console.log(scheduleList);
