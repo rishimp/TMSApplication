@@ -13,6 +13,7 @@ var completedCntr = 0;
 //send the class number and subject here
 class ClassParser extends EventEmitter {
 	constructor() {
+		//this will only be called once, you need something to clear the table on each call
 		super();
 	}
 
@@ -20,6 +21,9 @@ class ClassParser extends EventEmitter {
 		var self = this;
 		emitter.once("completedList", function(msg) {
 			self.emit("classList", msg);
+			classList = [];
+			cntr = 0;
+			completedCntr = 0;
 		});
 		getClasses(clsLs);
 	}
@@ -141,7 +145,7 @@ function parseRow(row) {
 			labtime : arr[41],
 			recitationday : arr[48],
 			normalrecittationtime : arr[52],
-			recitationtime : arr[52],
+			recitationtime : arr[52]
 		}
 		//console.log(classObj);
 		return classObj;
@@ -155,7 +159,7 @@ function parseRow(row) {
 			crn : arr[20],
 			day : arr[37],
 			normaltime : arr[41],
-			time : arr[41],
+			time : arr[41]
 		}
 
 		return classObj;
@@ -163,7 +167,8 @@ function parseRow(row) {
 }
 
 //makes a request to Drexel's TMS with a specific course number
-function makeRequest(crsNum, crsSub) {
+//switched params here
+function makeRequest(crsSub, crsNum) {
 	var options = {
     	url: 'https://termmasterschedule.drexel.edu/webtms_du/app?formids=term%2CcourseName%2CcrseNumb%2Ccrn&component=searchForm&page=Home&service=direct&submitmode=submit&submitname=&term=1&crseNumb='+crsNum,
     	method: 'POST',

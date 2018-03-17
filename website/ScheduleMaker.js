@@ -5,21 +5,140 @@ var app = express();
 app.use(express.static("."));
 var parser = new tmsparser.ClassParser();
 
-
-
-app.get("/getSchedules", function() {
-
+app.get("/getSchedules", function(req, res) {
+  var classls = req.query.classls;
+  classls = parseInput(classls);
+  var honors = req.query.honors;
+  var timeoff = req.query.timeoff;
   parser.once('classList', function(msg) {
+    if(typeof(timeoff) != "undefined") {
+      timeoff = timeoff.split(",");
+      timeoff[1] = timeoff[1].replace(/_/g, " ");
+      formattedtime = parseTime(timeoff[1]);
+      var timeoffObj = {
+        subject : "",
+        number : "",
+        type : "Custom",
+        section : "",
+        crn : "",
+        day : timeoff[0],
+        normaltime : timeoff[1],
+        time : formattedtime
+      }
+      msg.push([timeoffObj]);
+    }
+
     var validSchedules = getSchedules(msg);
     var finalSchedule = removeInvalidHonors(validSchedules);
-    html = "<table>";
-    for()
+    if(typeof(honors) != "undefined") {
+      finalSchedule = filterHonors(finalSchedule, honors);
+    }
+    html = "<table cellspacing='10'>";
+    html += "<tr><th>CRN</th><th>Subject</th><th>Number</th><th>Section</th><th>Type</th><th>Time(s)</th></tr>";
+    for(var i = 0; i < finalSchedule.length; i++) {
+      for(var j = 0; j < finalSchedule[i].length; j++) {
+        html += "<tr>";
+        html += "<td>";
+        var crn = finalSchedule[i][j].crn;
+        html += crn + "</td><td>";
+        var subject = finalSchedule[i][j].subject;
+        html += subject + "</td><td>";
+        var number = finalSchedule[i][j].number;
+        html += number + "</td><td>";
+        var section = finalSchedule[i][j].section;
+        html += section + "</td><td>";
+        if(finalSchedule[i][j].type == "Lab &amp; Recitation") {
+          var type = finalSchedule[i][j].type;
+          html += "Lab & Recitation" + "</td><td>";
+          var labday = finalSchedule[i][j].labday;
+          html += labday + "</td><td>";
+          var labtime = finalSchedule[i][j].normallabtime;
+          html += labtime + "</td><td>";
+          var recitationday = finalSchedule[i][j].recitationday;
+          html += recitationday + "</td><td>";
+          var recitationtime = finalSchedule[i][j].normalrecittationtime;
+          html += recitationtime + "</td></tr>";
+        }
+        else {
+          var type = finalSchedule[i][j].type;
+          html += type + "</td><td>";
+          var day = finalSchedule[i][j].day;
+          html += day + "</td><td>";
+          var time = finalSchedule[i][j].normaltime;
+          html += time + "</td></tr>";
+        }
+      }
+      html += "<tr><td><p> </P></td></tr>";
+    }
+    html += "</table>";
 
-
-    res.send();
+    res.send(html);
   });
+  parser.getClassList(classls);
 
-  parser.getClassList([[122,"BIO"], [164, "CS"], [101, "ANTH"], [230, "COM"], [120, "PSY"], [101, "SOC"]]);
+});
+
+function filterHonors(classls, showHonors) {
+  var onlyhonors = [];
+  var nohonors = [];
+  for(var i = 0; i < classls.length; i++) {
+    for(var j = 0; j < classls[i].length; j++) {
+      if(classls[i][j].section.includes("H")) {
+        onlyhonors.push(classls[i]);
+        break;
+      }
+    }
+  }
+  for(var i = 0; i < classls.length; i++) {
+    for(var j = 0; j < classls[i].length; j++) {
+      if(!classls[i][j].section.includes("H")) {
+        nohonors.push(classls[i]);
+        break;
+      }
+    }
+  }
+
+  if(showHonors == "1") {
+    return onlyhonors;
+  }
+  else {
+    return nohonors;
+  }
+}
+
+function parseTime(timeString) {
+	var timeArr = timeString.split(/[\s:]+/);
+	var milArr = [0,0];
+	milArr[0] = parseInt(timeArr[0]);
+	milArr[1] = parseInt(timeArr[4]);
+
+	if(timeArr[2] == "am" && milArr[0] == 12) {
+		milArr[0] = 0;
+	}
+	else if(timeArr[2] == "pm" && milArr[0] != 12) {
+		milArr[0] = milArr[0] + 12;
+	}
+
+	if(timeArr[6] == "am" && milArr[1] == 12) {
+		milArr[1] = 0;
+	}
+	else if(timeArr[6] == "pm" && milArr[1] != 12) {
+		milArr[1] = milArr[1] + 12;
+	}
+
+  return [parseInt(milArr[0]+""+timeArr[1]), parseInt(milArr[1]+""+timeArr[5])];
+}
+
+
+
+function parseInput(inp) {
+  var splitClasses = inp.split(";");
+  var currentClass;
+  for(var i = 0; i < splitClasses.length; i++) {
+    splitClasses[i] = splitClasses[i].split(",");
+    splitClasses[i][1] = parseInt(splitClasses[i][1]);
+  }
+  return splitClasses;
 }
 
 function removeInvalidHonors(scheduleLs) {
@@ -86,7 +205,6 @@ function getSchedules(classLs) {
   var masterSchedule = [];
   for(var i = 0; i < schedules.length; i++) {
     if(isValidSchedule(schedules[i])) {
-      //console.log("worked");
       masterSchedule.push(schedules[i]);
     }
   }
@@ -164,10 +282,10 @@ function hasTimeConflict(time1, day1, time2, day2) {
     var time2End = time2[1];
 
     if(time1Start < time2Start) {
-      return time1End - time2Start > 0;
+      return time1End - time2Start >= 0;
     }
     else if(time2Start < time1Start) {
-      return time2End - time1Start > 0;
+      return time2End - time1Start >= 0;
     }
     else {
       return true;
@@ -177,3 +295,5 @@ function hasTimeConflict(time1, day1, time2, day2) {
     return false;
   }
 }
+
+app.listen(8080);
